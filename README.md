@@ -34,6 +34,17 @@ See `supabase/schema.sql` for the initial Postgres schema:
 - `friendships` — friend graph
 - `checkins` — user_id, cafe_id, purpose, rating — powers both "best for" labels and matching over time
 
+## CI/CD
+
+- **`.github/workflows/ci.yml`** — runs on every PR and every push to `main`: lint, typecheck, unit tests (Vitest), build. This is the gate that must pass before a PR can merge.
+- **`.github/workflows/cd.yml`** — triggers after CI succeeds on `main`: applies Supabase migrations (`supabase/migrations/`) via the Supabase CLI. App deployment itself is handled by Vercel's GitHub integration, which auto-deploys on push to `main` independently — this workflow only covers the piece Vercel doesn't do (the database).
+
+**Required GitHub Actions secrets** (Settings → Secrets and variables → Actions):
+- `SUPABASE_ACCESS_TOKEN` — personal access token from your Supabase account
+- `SUPABASE_PROJECT_ID` — the project ref of your (production) Supabase project
+
+**Branching strategy:** trunk-based. Short-lived `feature/*` branches off `main`, opened as a PR, merged once CI passes.
+
 ## Roadmap
 
 - [ ] Seed ~50-100 cafes in one neighborhood, manually tagged

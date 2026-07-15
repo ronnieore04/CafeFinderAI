@@ -1,0 +1,40 @@
+name: CD
+
+# Triggers only after the CI workflow finishes running on main, and only
+# proceeds if CI actually succeeded. This guarantees we never run a
+# migration or ship a build that failed its checks — and avoids repeating
+# the lint/test/build steps CI already ran.
+#
+# Note: this workflow does NOT deploy the app itself. Once connected,
+# Vercel's GitHub integration auto-deploys on every push to main on its
+# own. This workflow's job is the one thing Vercel doesn't do for us:
+# applying database migrations in lockstep with the code that depends on them.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  migrate-database:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Apply migrations
+        run: supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
