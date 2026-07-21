@@ -12,7 +12,7 @@ create policy "Users can insert their own profile"
 
 create policy "Users can update their own profile"
     on profiles for update
-    using (auth.uid() = id);
+    using (auth.id() = id);
 
 create policy "Users can view their friendships"
     on friendships for select
@@ -32,7 +32,7 @@ create policy "Users can view their own checkins"
 
 create policy "Users can update their own checkins"
     on checkins for select
-    using (auth.uid() = user_id);
+    with check (auth.uid() = user_id);
 
 create policy "Users can delete their own checkins"
     on checkins for delete
