@@ -12,7 +12,7 @@ create policy "Users can insert their own profile"
 
 create policy "Users can update their own profile"
     on profiles for update
-    using (auth.id() = id);
+    using (auth.uid() = id);
 
 create policy "Users can view their friendships"
     on friendships for select
