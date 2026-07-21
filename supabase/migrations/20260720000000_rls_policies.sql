@@ -32,7 +32,7 @@ create policy "Users can view their own checkins"
 
 create policy "Users can update their own checkins"
     on checkins for select
-    with check (auth.uid() = user_id);
+    using (auth.uid() = user_id);
 
 create policy "Users can delete their own checkins"
     on checkins for delete
