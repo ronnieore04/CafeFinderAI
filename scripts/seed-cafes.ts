@@ -9,7 +9,7 @@
  * Uses the SUPABASE_SERVICE_ROLE_KEY, not the anon key, because the `cafes`
  * table only grants SELECT to anon/authenticated via RLS — writes are
  * intentionally restricted to this script, run manually by you.
- *ss
+ *
  * Usage: npm run seed -- --city "Philadelphia, PA"
  */
 import { config } from "dotenv";
