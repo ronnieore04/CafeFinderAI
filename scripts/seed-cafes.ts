@@ -12,6 +12,8 @@
  *ss
  * Usage: npm run seed -- --city "Philadelphia, PA"
  */
+import { config } from "dotenv";
+config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
 
