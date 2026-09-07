@@ -49,6 +49,13 @@ function getCityArg(): string {
 }
 
 // ---- Google Places API (New) types (partial — only what we use) --------
+type GooglePriceLevel =
+  | "PRICE_LEVEL_UNSPECIFIED"
+  | "PRICE_LEVEL_FREE"
+  | "PRICE_LEVEL_INEXPENSIVE"
+  | "PRICE_LEVEL_MODERATE"
+  | "PRICE_LEVEL_EXPENSIVE"
+  | "PRICE_LEVEL_VERY_EXPENSIVE"
 
 interface GooglePlace {
   id: string;
@@ -56,10 +63,26 @@ interface GooglePlace {
   formattedAddress?: string;
   location?: { latitude: number; longitude: number };
   regularOpeningHours?: unknown;
+  rating?: number;
+  priceLevel?: GooglePriceLevel
 }
 
 interface SearchTextResponse {
   places?: GooglePlace[];
+}
+
+const PRICE_LEVEL_MAP: Record<GooglePriceLevel, number | null> = {
+  PRICE_LEVEL_UNSPECIFIED: null,
+  PRICE_LEVEL_FREE: 0,
+  PRICE_LEVEL_INEXPENSIVE: 1,
+  PRICE_LEVEL_MODERATE: 2,
+  PRICE_LEVEL_EXPENSIVE: 3,
+  PRICE_LEVEL_VERY_EXPENSIVE: 4,
+};
+
+function toPriceLevel(priceLevel: GooglePriceLevel | undefined): number | null {
+  if (!priceLevel) return null;
+  return PRICE_LEVEL_MAP[priceLevel] ?? null;
 }
 
 // ---- Fetch from Google Places -------------------------------------------
@@ -75,7 +98,7 @@ async function fetchCafes(city: string): Promise<GooglePlace[]> {
         // Field masks are required by the new Places API — you only pay
         // for and receive the fields you explicitly ask for.
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.regularOpeningHours",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.regularOpeningHours,places.rating,places.priceLevel",
       },
       body: JSON.stringify({
         textQuery: `coffee shops in ${city}`,
@@ -119,6 +142,8 @@ async function insertCafes(places: GooglePlace[]) {
         location,
         hours: place.regularOpeningHours ?? null,
         google_place_id: place.id,
+        rating: place.rating ?? null,
+        price_level: toPriceLevel(place.priceLevel)
       },
       { onConflict: "google_place_id" }
     );

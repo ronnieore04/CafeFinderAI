@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx scripts/seed-cafes.ts"
+    "seed": "tsx scripts/seed-cafes.ts",
+    "tag-cafes": "tsx scripts/tag-cafes.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
