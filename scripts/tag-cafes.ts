@@ -157,11 +157,20 @@ ${reviewText}`;
   if (!textBlock?.text) return null;
 
   try {
-    return JSON.parse(textBlock.text) as InferredTags;
+    return JSON.parse(extractJson(textBlock.text)) as InferredTags;
   } catch {
     console.error(`Failed to parse AI response for "${cafeName}":`, textBlock.text);
     return null;
   }
+}
+
+// Claude sometimes wraps JSON output in a markdown code fence (```json ... ```)
+// even when explicitly told to return only JSON. Strip it before parsing
+// rather than relying on the model to never do this.
+function extractJson(text: string): string {
+  const trimmed = text.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fenceMatch ? fenceMatch[1] : trimmed;
 }
 
 // ---- Validate before it ever reaches the database ------------------------
