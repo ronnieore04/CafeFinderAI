@@ -3,8 +3,7 @@
  * API (New) and inserts core cafe data into Supabase.
  *
  * Amenity tags (cafe_tags) are intentionally NOT filled in here — those get
- * added by hand for the first seed batch to validate the schema before any
- * automated/crowdsourced tagging exists.
+ * added by hand or via scripts/tag-cafes.ts, separately.
  *
  * Uses the SUPABASE_SERVICE_ROLE_KEY, not the anon key, because the `cafes`
  * table only grants SELECT to anon/authenticated via RLS — writes are
@@ -16,6 +15,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
+import { toPriceLevel, type GooglePriceLevel } from "./lib/places";
 
 // ---- Config / env -----------------------------------------------------
 
@@ -49,13 +49,6 @@ function getCityArg(): string {
 }
 
 // ---- Google Places API (New) types (partial — only what we use) --------
-type GooglePriceLevel =
-  | "PRICE_LEVEL_UNSPECIFIED"
-  | "PRICE_LEVEL_FREE"
-  | "PRICE_LEVEL_INEXPENSIVE"
-  | "PRICE_LEVEL_MODERATE"
-  | "PRICE_LEVEL_EXPENSIVE"
-  | "PRICE_LEVEL_VERY_EXPENSIVE"
 
 interface GooglePlace {
   id: string;
@@ -64,25 +57,11 @@ interface GooglePlace {
   location?: { latitude: number; longitude: number };
   regularOpeningHours?: unknown;
   rating?: number;
-  priceLevel?: GooglePriceLevel
+  priceLevel?: GooglePriceLevel;
 }
 
 interface SearchTextResponse {
   places?: GooglePlace[];
-}
-
-const PRICE_LEVEL_MAP: Record<GooglePriceLevel, number | null> = {
-  PRICE_LEVEL_UNSPECIFIED: null,
-  PRICE_LEVEL_FREE: 0,
-  PRICE_LEVEL_INEXPENSIVE: 1,
-  PRICE_LEVEL_MODERATE: 2,
-  PRICE_LEVEL_EXPENSIVE: 3,
-  PRICE_LEVEL_VERY_EXPENSIVE: 4,
-};
-
-function toPriceLevel(priceLevel: GooglePriceLevel | undefined): number | null {
-  if (!priceLevel) return null;
-  return PRICE_LEVEL_MAP[priceLevel] ?? null;
 }
 
 // ---- Fetch from Google Places -------------------------------------------
@@ -95,8 +74,6 @@ async function fetchCafes(city: string): Promise<GooglePlace[]> {
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY as string,
-        // Field masks are required by the new Places API — you only pay
-        // for and receive the fields you explicitly ask for.
         "X-Goog-FieldMask":
           "places.id,places.displayName,places.formattedAddress,places.location,places.regularOpeningHours,places.rating,places.priceLevel",
       },
@@ -128,11 +105,6 @@ async function insertCafes(places: GooglePlace[]) {
     }
 
     const { latitude, longitude } = place.location;
-
-    // PostGIS geography columns accept EWKT text on insert via PostgREST,
-    // which Postgres casts automatically. SRID=4326 is plain lat/lng
-    // (the standard GPS coordinate system) — matches the column definition
-    // in the schema migration.
     const location = `SRID=4326;POINT(${longitude} ${latitude})`;
 
     const { error } = await supabase.from("cafes").upsert(
@@ -143,7 +115,7 @@ async function insertCafes(places: GooglePlace[]) {
         hours: place.regularOpeningHours ?? null,
         google_place_id: place.id,
         rating: place.rating ?? null,
-        price_level: toPriceLevel(place.priceLevel)
+        price_level: toPriceLevel(place.priceLevel),
       },
       { onConflict: "google_place_id" }
     );
@@ -179,7 +151,7 @@ async function main() {
   console.log(`Done. Inserted/updated: ${inserted}, skipped: ${skipped}.`);
   console.log(
     "Note: cafe_tags (noise, outlets, wifi, vibe) are NOT set yet — " +
-      "add those by hand for this first batch via the Supabase Table Editor."
+      "run `npm run tag-cafes` or add them by hand."
   );
 }
 
